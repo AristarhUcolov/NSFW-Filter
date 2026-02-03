@@ -1,0 +1,74 @@
+{
+  "extName": {
+    "message": "NSFW Filter",
+    "description": "Extension name"
+  },
+  "extDescription": {
+    "message": "AI-powered NSFW content blocker. Real-time protection from pornography, hentai, and explicit images.",
+    "description": "Extension description"
+  },
+  "extSubtitle": {
+    "message": "Content Protection",
+    "description": "Extension subtitle in popup"
+  },
+  "protectionActive": {
+    "message": "Protection Active",
+    "description": "Protection toggle label"
+  },
+  "filterSensitivity": {
+    "message": "Filter Sensitivity",
+    "description": "Sensitivity slider label"
+  },
+  "sensitivitySoft": {
+    "message": "Soft",
+    "description": "Soft sensitivity mode"
+  },
+  "sensitivityStrict": {
+    "message": "Strict",
+    "description": "Strict sensitivity mode"
+  },
+  "sensitivityHint": {
+    "message": "Higher values will block more images",
+    "description": "Sensitivity hint text"
+  },
+  "statsBlocked": {
+    "message": "Blocked",
+    "description": "Blocked images stat label"
+  },
+  "statsScanned": {
+    "message": "Scanned",
+    "description": "Scanned images stat label"
+  },
+  "resetStats": {
+    "message": "Reset Statistics",
+    "description": "Reset stats button"
+  },
+  "supportProject": {
+    "message": "Support the Project",
+    "description": "Support section title"
+  },
+  "buyMeCoffee": {
+    "message": "Buy Me a Coffee",
+    "description": "Buy Me a Coffee link text"
+  },
+  "bankTransfer": {
+    "message": "Bank Transfer",
+    "description": "Bank transfer button text"
+  },
+  "bank": {
+    "message": "Bank",
+    "description": "Bank label"
+  },
+  "card": {
+    "message": "Card",
+    "description": "Card label"
+  },
+  "recipient": {
+    "message": "Recipient",
+    "description": "Recipient label"
+  },
+  "betaWarning": {
+    "message": "BETA: Possible lags and bugs during testing",
+    "description": "Beta version warning"
+  }
+}

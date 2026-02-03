@@ -1,0 +1,74 @@
+{
+  "extName": {
+    "message": "NSFW Filter",
+    "description": "Название расширения"
+  },
+  "extDescription": {
+    "message": "Блокировка NSFW контента с помощью AI. Защита в реальном времени от порнографии, хентай и откровенных изображений.",
+    "description": "Описание расширения"
+  },
+  "extSubtitle": {
+    "message": "Защита от нежелательного контента",
+    "description": "Подзаголовок расширения в popup"
+  },
+  "protectionActive": {
+    "message": "Защита активна",
+    "description": "Надпись переключателя защиты"
+  },
+  "filterSensitivity": {
+    "message": "Чувствительность фильтра",
+    "description": "Надпись ползунка чувствительности"
+  },
+  "sensitivitySoft": {
+    "message": "Мягкий",
+    "description": "Мягкий режим чувствительности"
+  },
+  "sensitivityStrict": {
+    "message": "Строгий",
+    "description": "Строгий режим чувствительности"
+  },
+  "sensitivityHint": {
+    "message": "Чем выше значение, тем больше изображений будет заблокировано",
+    "description": "Подсказка для чувствительности"
+  },
+  "statsBlocked": {
+    "message": "Заблокировано",
+    "description": "Надпись статистики заблокированных"
+  },
+  "statsScanned": {
+    "message": "Проверено",
+    "description": "Надпись статистики проверенных"
+  },
+  "resetStats": {
+    "message": "Сбросить статистику",
+    "description": "Кнопка сброса статистики"
+  },
+  "supportProject": {
+    "message": "Поддержать проект",
+    "description": "Заголовок секции поддержки"
+  },
+  "buyMeCoffee": {
+    "message": "Buy Me a Coffee",
+    "description": "Текст ссылки Buy Me a Coffee"
+  },
+  "bankTransfer": {
+    "message": "Банковский перевод",
+    "description": "Текст кнопки банковского перевода"
+  },
+  "bank": {
+    "message": "Банк",
+    "description": "Надпись банка"
+  },
+  "card": {
+    "message": "Карта",
+    "description": "Надпись карты"
+  },
+  "recipient": {
+    "message": "Получатель",
+    "description": "Надпись получателя"
+  },
+  "betaWarning": {
+    "message": "БЕТА: Возможны лаги и ошибки в период тестирования",
+    "description": "Предупреждение о бета-версии"
+  }
+}

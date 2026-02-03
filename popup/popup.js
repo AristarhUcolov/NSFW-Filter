@@ -8,6 +8,28 @@ const resetStats = document.getElementById('resetStats');
 const showBankDetails = document.getElementById('showBankDetails');
 const bankDetails = document.getElementById('bankDetails');
 
+// Загрузка локализованных текстов
+function loadI18nMessages() {
+  document.querySelectorAll('[data-i18n]').forEach(element => {
+    const key = element.getAttribute('data-i18n');
+    const message = chrome.i18n.getMessage(key);
+    if (message) {
+      // Для ссылок и кнопок добавляем иконки
+      if (key === 'buyMeCoffee') {
+        element.textContent = '☕ ' + message;
+      } else if (key === 'bankTransfer') {
+        element.textContent = '🏦 ' + message;
+      } else {
+        element.textContent = message;
+      }
+    }
+  });
+  
+  // Обновляем lang атрибут
+  const locale = chrome.i18n.getUILanguage();
+  document.documentElement.lang = locale.startsWith('ru') ? 'ru' : 'en';
+}
+
 // Загрузка настроек при открытии popup
 async function loadSettings() {
   const result = await chrome.storage.local.get([
@@ -94,4 +116,5 @@ chrome.storage.onChanged.addListener((changes) => {
 });
 
 // Инициализация
+loadI18nMessages();
 loadSettings();

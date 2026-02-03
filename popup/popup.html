@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,12 +11,13 @@
     <div class="header">
       <div class="logo">🛡️</div>
       <h1>NSFW Filter</h1>
-      <p class="subtitle">Защита от нежелательного контента</p>
+      <p class="subtitle" data-i18n="extSubtitle"></p>
+      <p class="beta-warning" data-i18n="betaWarning"></p>
     </div>
 
     <div class="toggle-section">
       <label class="toggle-label">
-        <span>Защита активна</span>
+        <span data-i18n="protectionActive"></span>
         <div class="toggle-switch">
           <input type="checkbox" id="enableFilter" checked>
           <span class="slider"></span>
@@ -26,50 +27,46 @@
 
     <div class="sensitivity-section">
       <div class="sensitivity-header">
-        <span>Чувствительность фильтра</span>
+        <span data-i18n="filterSensitivity"></span>
         <span id="sensitivityValue" class="sensitivity-value">50%</span>
       </div>
       <div class="slider-container">
         <input type="range" id="sensitivity" min="0" max="100" value="50" class="range-slider">
         <div class="slider-labels">
-          <span>Мягкий</span>
-          <span>Строгий</span>
+          <span data-i18n="sensitivitySoft"></span>
+          <span data-i18n="sensitivityStrict"></span>
         </div>
       </div>
-      <p class="sensitivity-hint">
-        Чем выше значение, тем больше изображений будет заблокировано
-      </p>
+      <p class="sensitivity-hint" data-i18n="sensitivityHint"></p>
     </div>
 
     <div class="stats-section">
       <div class="stat-item">
         <span class="stat-number" id="blockedCount">0</span>
-        <span class="stat-label">Заблокировано</span>
+        <span class="stat-label" data-i18n="statsBlocked"></span>
       </div>
       <div class="stat-item">
         <span class="stat-number" id="scannedCount">0</span>
-        <span class="stat-label">Проверено</span>
+        <span class="stat-label" data-i18n="statsScanned"></span>
       </div>
     </div>
 
     <div class="footer">
-      <button id="resetStats" class="btn-reset">Сбросить статистику</button>
+      <button id="resetStats" class="btn-reset" data-i18n="resetStats"></button>
       
       <div class="support-section">
-        <p class="support-title">💖 Поддержать проект</p>
+        <p class="support-title">💖 <span data-i18n="supportProject"></span></p>
         <div class="support-links">
-          <a href="https://buymeacoffee.com/aristarh.ucolov" target="_blank" class="support-link coffee">
-            ☕ Buy Me a Coffee
+          <a href="https://buymeacoffee.com/aristarh.ucolov" target="_blank" class="support-link coffee" data-i18n="buyMeCoffee">
           </a>
-          <button id="showBankDetails" class="support-link bank">
-            🏦 Банковский перевод
+          <button id="showBankDetails" class="support-link bank" data-i18n="bankTransfer">
           </button>
         </div>
         <div id="bankDetails" class="bank-details hidden">
           <div class="bank-info">
-            <p><strong>Банк:</strong> Moldindconbank</p>
-            <p><strong>Карта:</strong> <code>4028 1202 1106 0963</code></p>
-            <p><strong>Получатель:</strong> Aristarh Ucolov</p>
+            <p><strong data-i18n="bank"></strong>: Moldindconbank</p>
+            <p><strong data-i18n="card"></strong>: <code>4028 1202 1106 0963</code></p>
+            <p><strong data-i18n="recipient"></strong>: Aristarh Ucolov</p>
           </div>
         </div>
       </div>

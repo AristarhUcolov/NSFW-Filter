@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "NSFW Filter - Защита от нежелательного контента",
+  "name": "__MSG_extName__",
   "version": "1.0.0",
-  "description": "Блокирует NSFW изображения в реальном времени с использованием AI",
+  "description": "__MSG_extDescription__",
+  "default_locale": "en",
   "permissions": [
     "storage",
     "activeTab"
