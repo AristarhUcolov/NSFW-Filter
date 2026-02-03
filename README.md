@@ -1,11 +1,20 @@
 # 🛡️ NSFW Filter
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub Stars](https://img.shields.io/github/stars/AristarhUcolov/NSFW-Filter?style=social)](https://github.com/AristarhUcolov/NSFW-Filter/stargazers)
+[![GitHub Issues](https://img.shields.io/github/issues/AristarhUcolov/NSFW-Filter)](https://github.com/AristarhUcolov/NSFW-Filter/issues)
+[![GitHub Release](https://img.shields.io/github/v/release/AristarhUcolov/NSFW-Filter?include_prereleases)](https://github.com/AristarhUcolov/NSFW-Filter/releases)
+[![Chrome Web Store](https://img.shields.io/badge/Chrome-Web%20Store-brightgreen)](https://github.com/AristarhUcolov/NSFW-Filter)
+[![Version](https://img.shields.io/badge/version-1.0.0--beta-orange)](https://github.com/AristarhUcolov/NSFW-Filter)
+
 [🇷🇺 Русский](#russian) | [🇬🇧 English](#english)
 
 ---
 
 <a name="russian"></a>
 ## 🇷🇺 Русская версия
+
+> ⚠️ **БЕТА-ВЕРСИЯ**: Расширение находится на стадии бета-тестирования. Возможны лаги, ошибки и неожиданное поведение. Мы активно работаем над улучшением стабильности и производительности.
 
 ### Защита от нежелательного контента
 
@@ -128,6 +137,8 @@ MIT License
 
 <a name="english"></a>
 ## 🇬🇧 English Version
+
+> ⚠️ **BETA VERSION**: This extension is in beta testing stage. You may experience lags, bugs, and unexpected behavior. We are actively working on improving stability and performance.
 
 ### Content Protection Extension
 
