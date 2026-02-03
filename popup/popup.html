@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NSFW Filter</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">🛡️</div>
+      <h1>NSFW Filter</h1>
+      <p class="subtitle">Защита от нежелательного контента</p>
+    </div>
+
+    <div class="toggle-section">
+      <label class="toggle-label">
+        <span>Защита активна</span>
+        <div class="toggle-switch">
+          <input type="checkbox" id="enableFilter" checked>
+          <span class="slider"></span>
+        </div>
+      </label>
+    </div>
+
+    <div class="sensitivity-section">
+      <div class="sensitivity-header">
+        <span>Чувствительность фильтра</span>
+        <span id="sensitivityValue" class="sensitivity-value">50%</span>
+      </div>
+      <div class="slider-container">
+        <input type="range" id="sensitivity" min="0" max="100" value="50" class="range-slider">
+        <div class="slider-labels">
+          <span>Мягкий</span>
+          <span>Строгий</span>
+        </div>
+      </div>
+      <p class="sensitivity-hint">
+        Чем выше значение, тем больше изображений будет заблокировано
+      </p>
+    </div>
+
+    <div class="stats-section">
+      <div class="stat-item">
+        <span class="stat-number" id="blockedCount">0</span>
+        <span class="stat-label">Заблокировано</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-number" id="scannedCount">0</span>
+        <span class="stat-label">Проверено</span>
+      </div>
+    </div>
+
+    <div class="footer">
+      <button id="resetStats" class="btn-reset">Сбросить статистику</button>
+      
+      <div class="support-section">
+        <p class="support-title">💖 Поддержать проект</p>
+        <div class="support-links">
+          <a href="https://buymeacoffee.com/aristarh.ucolov" target="_blank" class="support-link coffee">
+            ☕ Buy Me a Coffee
+          </a>
+          <button id="showBankDetails" class="support-link bank">
+            🏦 Банковский перевод
+          </button>
+        </div>
+        <div id="bankDetails" class="bank-details hidden">
+          <div class="bank-info">
+            <p><strong>Банк:</strong> Moldindconbank</p>
+            <p><strong>Карта:</strong> <code>4028 1202 1106 0963</code></p>
+            <p><strong>Получатель:</strong> Aristarh Ucolov</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
