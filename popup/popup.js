@@ -7,12 +7,25 @@ const scannedCount = document.getElementById('scannedCount');
 const resetStats = document.getElementById('resetStats');
 const showBankDetails = document.getElementById('showBankDetails');
 const bankDetails = document.getElementById('bankDetails');
+const languageToggle = document.getElementById('languageToggle');
+
+// Получение текущего языка
+async function getCurrentLanguage() {
+  const result = await chrome.storage.local.get('language');
+  return result.language || (chrome.i18n.getUILanguage().startsWith('ru') ? 'ru' : 'en');
+}
 
 // Загрузка локализованных текстов
-function loadI18nMessages() {
+async function loadI18nMessages() {
+  const currentLang = await getCurrentLanguage();
+  
+  // Загружаем переводы из соответствующего файла
+  const messages = await fetch(chrome.runtime.getURL(`_locales/${currentLang}/messages.json`))
+    .then(r => r.json());
+  
   document.querySelectorAll('[data-i18n]').forEach(element => {
     const key = element.getAttribute('data-i18n');
-    const message = chrome.i18n.getMessage(key);
+    const message = messages[key]?.message;
     if (message) {
       // Для ссылок и кнопок добавляем иконки
       if (key === 'buyMeCoffee') {
@@ -25,9 +38,21 @@ function loadI18nMessages() {
     }
   });
   
+  // Обновляем текст кнопки смены языка
+  updateLanguageButton(currentLang);
+  
   // Обновляем lang атрибут
-  const locale = chrome.i18n.getUILanguage();
-  document.documentElement.lang = locale.startsWith('ru') ? 'ru' : 'en';
+  document.documentElement.lang = currentLang;
+}
+
+// Обновление текста кнопки смены языка
+async function updateLanguageButton(currentLang) {
+  const messages = await fetch(chrome.runtime.getURL(`_locales/${currentLang}/messages.json`))
+    .then(r => r.json());
+  
+  const nextLang = currentLang === 'ru' ? 'en' : 'ru';
+  const nextLangKey = nextLang === 'ru' ? 'languageRussian' : 'languageEnglish';
+  languageToggle.textContent = messages[nextLangKey]?.message || (nextLang === 'ru' ? '🇷🇺 Русский' : '🇬🇧 English');
 }
 
 // Загрузка настроек при открытии popup
@@ -104,6 +129,16 @@ resetStats.addEventListener('click', async () => {
 // Показать/скрыть банковские реквизиты
 showBankDetails.addEventListener('click', () => {
   bankDetails.classList.toggle('hidden');
+});
+
+// Переключение языка
+languageToggle.addEventListener('click', async () => {
+  const currentLang = await getCurrentLanguage();
+  const newLang = currentLang === 'ru' ? 'en' : 'ru';
+  await chrome.storage.local.set({ language: newLang });
+  await loadI18nMessages();
+  // Перезагружаем настройки чтобы обновить статистику
+  await loadSettings();
 });
 
 // Обновление статистики в реальном времени

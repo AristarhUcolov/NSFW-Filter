@@ -70,5 +70,17 @@
   "betaWarning": {
     "message": "BETA: Possible lags and bugs during testing",
     "description": "Beta version warning"
+  },
+  "languageSwitch": {
+    "message": "Language",
+    "description": "Language switcher label"
+  },
+  "languageRussian": {
+    "message": "🇷🇺 Русский",
+    "description": "Russian language option"
+  },
+  "languageEnglish": {
+    "message": "🇬🇧 English",
+    "description": "English language option"
   }
 }

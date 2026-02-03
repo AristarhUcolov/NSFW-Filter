@@ -52,6 +52,34 @@ h1 {
   text-align: center;
 }
 
+.language-switcher {
+  margin-top: 12px;
+  display: flex;
+  justify-content: center;
+}
+
+.language-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.language-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.language-btn:active {
+  transform: translateY(0);
+}
+
 /* Toggle Switch */
 .toggle-section {
   background: #f8f9fa;
