@@ -1,17 +1,37 @@
-// NSFW Filter Content Script
-// Обрабатывает изображения на странице в реальном времени
+// NSFW Filter Content Script — v2.0 Optimized
+// Высокопроизводительная обработка изображений с параллелизмом
+// 5-классовая система NSFWJS: Drawing, Hentai, Neutral, Porn, Sexy
 
 (async function() {
   'use strict';
 
-  // Конфигурация
+  // ═══════════════════════════════════════════════════════════════
+  // КОНФИГУРАЦИЯ
+  // ═══════════════════════════════════════════════════════════════
+  
   let settings = {
     enabled: true,
     sensitivity: 50,
     categories: { porn: true, sexy: true, hentai: true }
   };
 
-  // Состояние
+  // Параметры производительности
+  const CONFIG = {
+    MIN_IMAGE_SIZE: 50,          // Минимальный размер изображения (px)
+    MAX_CONCURRENT: 4,           // Параллельных классификаций одновременно
+    RESIZE_TARGET: 299,          // Размер для модели (299x299)
+    JPEG_QUALITY: 0.7,           // Качество JPEG (ниже = быстрее передача)
+    REQUEST_TIMEOUT: 10000,      // Таймаут запроса (10с вместо 30с)
+    STATS_DEBOUNCE: 2000,        // Частота отправки статистики (мс)
+    SCAN_DEBOUNCE: 50,           // Дебаунс сканирования DOM (мс)
+    VISIBILITY_CHECK: true,      // Приоритизация видимых изображений
+    BATCH_SIZE: 6,               // Размер пакета для одновременной обработки
+  };
+
+  // ═══════════════════════════════════════════════════════════════
+  // СОСТОЯНИЕ
+  // ═══════════════════════════════════════════════════════════════
+
   let isModelReady = false;
   let isSandboxReady = false;
   let processedImages = new WeakSet();
@@ -19,17 +39,35 @@
   let sandboxIframe = null;
   let pendingRequests = new Map();
   let requestIdCounter = 0;
-  
-  // Минимальный размер изображения для проверки (пиксели)
-  const MIN_IMAGE_SIZE = 64;
+  let activeTasks = 0;
+  let imageQueue = [];          // Очередь изображений с приоритетами
+  let isProcessingQueue = false;
+  let scanDebounceTimer = null;
 
-  // Создание sandbox iframe
+  // Переиспользуемый canvas для конвертации
+  let sharedCanvas = null;
+  let sharedCtx = null;
+
+  function getSharedCanvas() {
+    if (!sharedCanvas) {
+      sharedCanvas = document.createElement('canvas');
+      sharedCanvas.width = CONFIG.RESIZE_TARGET;
+      sharedCanvas.height = CONFIG.RESIZE_TARGET;
+      sharedCtx = sharedCanvas.getContext('2d', { willReadFrequently: false });
+    }
+    return { canvas: sharedCanvas, ctx: sharedCtx };
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // SANDBOX КОММУНИКАЦИЯ
+  // ═══════════════════════════════════════════════════════════════
+
   function createSandboxIframe() {
     if (sandboxIframe) return;
     
     sandboxIframe = document.createElement('iframe');
     sandboxIframe.src = chrome.runtime.getURL('sandbox/sandbox.html');
-    sandboxIframe.style.cssText = 'display:none !important; width:0; height:0; border:none; position:fixed; top:-9999px; left:-9999px;';
+    sandboxIframe.style.cssText = 'display:none!important;width:0;height:0;border:none;position:fixed;top:-9999px;left:-9999px;pointer-events:none;';
     sandboxIframe.setAttribute('sandbox', 'allow-scripts');
     
     document.documentElement.appendChild(sandboxIframe);
@@ -37,43 +75,43 @@
 
   // Обработка сообщений от sandbox
   window.addEventListener('message', (event) => {
-    // Проверяем что сообщение от нашего sandbox
     if (event.source !== sandboxIframe?.contentWindow) return;
     
-    const { type, id, success, predictions, error } = event.data;
+    const data = event.data;
     
-    if (type === 'SANDBOX_READY') {
-      isSandboxReady = true;
-      console.log('NSFW Filter: Sandbox ready');
-    }
-    
-    if (type === 'PRELOAD_RESULT') {
-      if (success) {
-        isModelReady = true;
-        console.log('NSFW Filter: Model loaded');
-        processPendingImages();
-      }
-      const pending = pendingRequests.get(id);
-      if (pending) {
-        pending.resolve({ success, error });
-        pendingRequests.delete(id);
-      }
-    }
-    
-    if (type === 'CLASSIFY_RESULT') {
-      const pending = pendingRequests.get(id);
-      if (pending) {
-        if (success) {
-          pending.resolve({ success: true, predictions });
-        } else {
-          pending.resolve({ success: false, error });
+    switch (data.type) {
+      case 'SANDBOX_READY':
+        isSandboxReady = true;
+        console.log('NSFW Filter: Sandbox ready');
+        break;
+        
+      case 'PRELOAD_RESULT':
+        if (data.success) {
+          isModelReady = true;
+          console.log('NSFW Filter: Model loaded');
+          drainQueue();
         }
-        pendingRequests.delete(id);
-      }
+        resolvePending(data.id, data);
+        break;
+        
+      case 'CLASSIFY_RESULT':
+        resolvePending(data.id, data);
+        break;
+        
+      case 'BATCH_RESULT':
+        resolvePending(data.id, data);
+        break;
     }
   });
-  
-  // Отправка сообщения в sandbox с ожиданием ответа
+
+  function resolvePending(id, data) {
+    const pending = pendingRequests.get(id);
+    if (pending) {
+      pending.resolve(data);
+      pendingRequests.delete(id);
+    }
+  }
+
   function sendToSandbox(type, data = {}) {
     return new Promise((resolve, reject) => {
       if (!sandboxIframe?.contentWindow) {
@@ -82,214 +120,391 @@
       }
       
       const id = ++requestIdCounter;
-      pendingRequests.set(id, { resolve, reject });
-      
-      // Таймаут 30 секунд
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         if (pendingRequests.has(id)) {
           pendingRequests.delete(id);
           reject(new Error('Request timeout'));
         }
-      }, 30000);
+      }, CONFIG.REQUEST_TIMEOUT);
+      
+      pendingRequests.set(id, {
+        resolve: (result) => { clearTimeout(timer); resolve(result); },
+        reject: (err) => { clearTimeout(timer); reject(err); }
+      });
       
       sandboxIframe.contentWindow.postMessage({ type, id, ...data }, '*');
     });
   }
-  
-  // Преобразование изображения в data URL
-  function imageToDataUrl(img) {
-    const canvas = document.createElement('canvas');
-    canvas.width = img.naturalWidth || img.width;
-    canvas.height = img.naturalHeight || img.height;
-    
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(img, 0, 0);
-    
-    return canvas.toDataURL('image/jpeg', 0.8);
-  }
 
-  // Классификация изображения через sandbox
-  async function classifyImage(img) {
+  // ═══════════════════════════════════════════════════════════════
+  // ОПТИМИЗИРОВАННАЯ КОНВЕРТАЦИЯ ИЗОБРАЖЕНИЙ
+  // ═══════════════════════════════════════════════════════════════
+
+  // Уменьшаем изображение до 299x299 и конвертируем в data URL
+  // Это критически важно: модели нужно 299x299, нет смысла передавать 4K
+  function imageToOptimizedDataUrl(img) {
+    const { canvas, ctx } = getSharedCanvas();
+    
+    // Очищаем и рисуем с масштабированием до 299x299
+    ctx.clearRect(0, 0, CONFIG.RESIZE_TARGET, CONFIG.RESIZE_TARGET);
+    ctx.drawImage(img, 0, 0, CONFIG.RESIZE_TARGET, CONFIG.RESIZE_TARGET);
+    
     try {
-      const imageDataUrl = imageToDataUrl(img);
-      const response = await sendToSandbox('CLASSIFY_IMAGE', { imageDataUrl });
-      
-      if (response && response.success) {
-        return response.predictions;
-      } else {
-        throw new Error(response?.error || 'Classification failed');
-      }
-    } catch (error) {
-      console.debug('NSFW Filter: Classification error', error);
+      return canvas.toDataURL('image/jpeg', CONFIG.JPEG_QUALITY);
+    } catch (e) {
+      // Canvas is tainted by cross-origin image — cannot export
+      // This happens when images are served from different domains (e.g., Google Images)
       return null;
     }
   }
 
-  // Предзагрузка модели
-  async function preloadModel() {
-    if (isModelReady) return;
-    if (!isSandboxReady) {
-      // Подождём готовности sandbox
-      await new Promise(resolve => {
-        const check = () => {
-          if (isSandboxReady) {
-            resolve();
-          } else {
-            setTimeout(check, 100);
-          }
-        };
-        check();
-      });
+  // ═══════════════════════════════════════════════════════════════
+  // СИСТЕМА ОЧЕРЕДЕЙ С ПРИОРИТЕТАМИ
+  // ═══════════════════════════════════════════════════════════════
+
+  function isElementVisible(el) {
+    if (!CONFIG.VISIBILITY_CHECK) return true;
+    
+    const rect = el.getBoundingClientRect();
+    const viewHeight = window.innerHeight || document.documentElement.clientHeight;
+    const viewWidth = window.innerWidth || document.documentElement.clientWidth;
+    
+    // Изображение в viewport или рядом (1 экран сверху/снизу)
+    return (
+      rect.bottom >= -viewHeight &&
+      rect.top <= viewHeight * 2 &&
+      rect.right >= 0 &&
+      rect.left <= viewWidth
+    );
+  }
+
+  function enqueueImage(img) {
+    // Видимые изображения получают высокий приоритет
+    const priority = isElementVisible(img) ? 0 : 1;
+    imageQueue.push({ img, priority });
+    
+    // Сортируем: видимые сначала
+    if (imageQueue.length > 1) {
+      imageQueue.sort((a, b) => a.priority - b.priority);
     }
     
-    try {
-      const response = await sendToSandbox('PRELOAD_MODEL');
-      if (response && response.success) {
-        isModelReady = true;
-        console.log('NSFW Filter: Model preloaded');
-        processPendingImages();
-      }
-    } catch (error) {
-      console.debug('NSFW Filter: Model preload error', error);
-    }
+    drainQueue();
   }
 
-  // Получение настроек
-  async function fetchSettings() {
-    try {
-      const response = await chrome.runtime.sendMessage({ type: 'GET_SETTINGS' });
-      if (response) {
-        settings = response;
+  async function drainQueue() {
+    if (isProcessingQueue) return;
+    if (!isModelReady || !isSandboxReady) return;
+    if (imageQueue.length === 0) return;
+    
+    isProcessingQueue = true;
+    
+    while (imageQueue.length > 0 && activeTasks < CONFIG.MAX_CONCURRENT) {
+      const batch = [];
+      
+      // Берём до BATCH_SIZE изображений
+      while (batch.length < CONFIG.BATCH_SIZE && imageQueue.length > 0 && activeTasks + batch.length < CONFIG.MAX_CONCURRENT) {
+        const item = imageQueue.shift();
+        if (item && item.img && item.img.isConnected && !processedImages.has(item.img) && item.img.dataset.nsfwBlocked !== 'true') {
+          batch.push(item.img);
+        }
       }
-    } catch (error) {
-      console.error('NSFW Filter: Failed to fetch settings', error);
+      
+      if (batch.length === 0) break;
+      
+      // Запускаем все изображения пакета параллельно
+      for (const img of batch) {
+        activeTasks++;
+        processImage(img).finally(() => {
+          activeTasks--;
+          // Запускаем следующие из очереди
+          if (imageQueue.length > 0 && activeTasks < CONFIG.MAX_CONCURRENT) {
+            drainQueue();
+          }
+        });
+      }
     }
+    
+    isProcessingQueue = false;
   }
 
-  // Проверка изображения
-  async function checkImage(img) {
+  // ═══════════════════════════════════════════════════════════════
+  // ОБРАБОТКА ИЗОБРАЖЕНИЙ
+  // ═══════════════════════════════════════════════════════════════
+
+  async function processImage(img) {
     if (!settings.enabled) return;
     if (processedImages.has(img)) return;
     if (img.dataset.nsfwBlocked === 'true') return;
-    if (img.width < MIN_IMAGE_SIZE || img.height < MIN_IMAGE_SIZE) return;
+    
+    // Проверяем размер
+    const w = img.naturalWidth || img.width;
+    const h = img.naturalHeight || img.height;
+    if (w < CONFIG.MIN_IMAGE_SIZE || h < CONFIG.MIN_IMAGE_SIZE) return;
     
     processedImages.add(img);
     
     try {
-      const predictions = await classifyImage(img);
-      if (!predictions) return;
+      // Оптимизированная конвертация: уменьшаем до 299x299
+      let imageDataUrl = imageToOptimizedDataUrl(img);
       
-      const result = analyzeResults(predictions);
+      // If canvas is tainted (cross-origin image), try re-fetching with CORS
+      if (!imageDataUrl && img.src && (img.src.startsWith('http://') || img.src.startsWith('https://'))) {
+        imageDataUrl = await fetchImageAsDataUrl(img.src);
+      }
       
-      if (result.shouldBlock) {
-        blockImage(img, result.reason);
-        updateStats(1, 1);
-      } else {
-        updateStats(0, 1);
+      if (!imageDataUrl) {
+        // Cannot convert image — skip silently
+        return;
+      }
+      
+      const response = await sendToSandbox('CLASSIFY_IMAGE', { imageDataUrl });
+      
+      if (response && response.success && response.predictions) {
+        const result = analyzeResults(response.predictions);
+        
+        if (result.shouldBlock) {
+          blockImage(img, result.reason, result.category);
+          updateStats(1, 1);
+        } else {
+          updateStats(0, 1);
+        }
       }
     } catch (error) {
-      console.debug('NSFW Filter: Check image error', error);
+      // Не блокируем при ошибке, но убираем из обработанных для повторной попытки
+      processedImages.delete(img);
+      console.debug('NSFW Filter: Process error', error.message);
     }
   }
 
-  // Анализ результатов классификации
+  // Fetch cross-origin image as data URL via background-safe fetch
+  async function fetchImageAsDataUrl(url) {
+    try {
+      const response = await fetch(url, { mode: 'cors' });
+      if (!response.ok) return null;
+      const blob = await response.blob();
+      if (!blob.type.startsWith('image/')) return null;
+      
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // 5-КЛАССОВАЯ СИСТЕМА КЛАССИФИКАЦИИ NSFWJS
+  // ═══════════════════════════════════════════════════════════════
+  //
+  // Классы NSFWJS:
+  //   Drawing  — безопасные рисунки/иллюстрации (включая аниме)
+  //   Hentai   — хентай, порнографические рисунки
+  //   Neutral  — безопасный нейтральный контент
+  //   Porn     — порнография, сексуальные акты
+  //   Sexy     — откровенный контент, не порнография
+  //
+  // Логика: Drawing и Neutral = БЕЗОПАСНО
+  //         Porn, Sexy, Hentai = потенциально NSFW (зависит от настроек)
+  //
+  // Алгоритм:
+  // 1. Собираем баллы для каждого класса
+  // 2. Если "безопасные" классы (Drawing + Neutral) доминируют → пропускаем
+  // 3. Если NSFW-классы превышают порог → блокируем
+  // 4. Используем комбинированный скоринг для лучшей точности
+
   function analyzeResults(predictions) {
-    // Преобразуем чувствительность (0-100) в порог (1.0-0.0)
-    // sensitivity 0 = threshold 1.0 (ничего не блокируем)
-    // sensitivity 100 = threshold 0.0 (блокируем всё)
+    // Порог чувствительности: sensitivity 0 → threshold 1.0, sensitivity 100 → threshold 0.0
     const threshold = 1 - (settings.sensitivity / 100);
+    
+    // Собираем вероятности по классам
+    const scores = {
+      drawing: 0,
+      hentai: 0,
+      neutral: 0,
+      porn: 0,
+      sexy: 0
+    };
+    
+    for (const pred of predictions) {
+      const cls = pred.className.toLowerCase();
+      if (cls in scores) {
+        scores[cls] = pred.probability;
+      }
+    }
+    
+    // Суммарный "безопасный" скор
+    const safeScore = scores.drawing + scores.neutral;
+    
+    // Суммарный NSFW скор
+    const nsfwScore = scores.porn + scores.hentai + scores.sexy;
+    
+    // Быстрый выход: если безопасные классы доминируют (>75%), не блокируем
+    if (safeScore > 0.75 && nsfwScore < 0.25) {
+      return { shouldBlock: false, reason: '', category: '', score: 0 };
+    }
     
     let shouldBlock = false;
     let reason = '';
+    let category = '';
     let maxScore = 0;
-
-    for (const pred of predictions) {
-      const className = pred.className.toLowerCase();
-      const probability = pred.probability;
-
-      // Проверяем каждую категорию
-      if (className === 'porn' && settings.categories.porn) {
-        if (probability >= threshold) {
-          shouldBlock = true;
-          if (probability > maxScore) {
-            maxScore = probability;
-            reason = 'Порнография';
-          }
-        }
+    
+    // Проверяем PORN
+    if (settings.categories.porn && scores.porn >= threshold) {
+      shouldBlock = true;
+      if (scores.porn > maxScore) {
+        maxScore = scores.porn;
+        reason = 'Porn';
+        category = 'porn';
       }
-      
-      if (className === 'sexy' && settings.categories.sexy) {
-        // Для "sexy" используем более высокий порог
-        const sexyThreshold = Math.min(threshold + 0.2, 0.95);
-        if (probability >= sexyThreshold) {
-          shouldBlock = true;
-          if (probability > maxScore) {
-            maxScore = probability;
-            reason = 'Откровенный контент';
-          }
-        }
+    }
+    
+    // Проверяем HENTAI
+    // Учитываем разницу между Drawing и Hentai:
+    // если Drawing-скор высокий, повышаем порог для Hentai
+    if (settings.categories.hentai) {
+      let hentaiThreshold = threshold;
+      // Если Drawing тоже высок, нужна бóльшая уверенность для Hentai
+      if (scores.drawing > 0.3) {
+        hentaiThreshold = Math.min(threshold + 0.15, 0.95);
       }
-      
-      if (className === 'hentai' && settings.categories.hentai) {
-        if (probability >= threshold) {
-          shouldBlock = true;
-          if (probability > maxScore) {
-            maxScore = probability;
-            reason = 'Хентай';
-          }
+      if (scores.hentai >= hentaiThreshold) {
+        shouldBlock = true;
+        if (scores.hentai > maxScore) {
+          maxScore = scores.hentai;
+          reason = 'Hentai';
+          category = 'hentai';
         }
       }
     }
-
-    return { shouldBlock, reason, score: maxScore };
+    
+    // Проверяем SEXY
+    // Sexy — менее серьёзная категория, повышаем порог
+    if (settings.categories.sexy) {
+      const sexyThreshold = Math.min(threshold + 0.15, 0.95);
+      // Если Neutral высок, ещё больше повышаем порог
+      if (scores.neutral > 0.3) {
+        const adjustedThreshold = Math.min(sexyThreshold + 0.1, 0.95);
+        if (scores.sexy >= adjustedThreshold) {
+          shouldBlock = true;
+          if (scores.sexy > maxScore) {
+            maxScore = scores.sexy;
+            reason = 'Sexy';
+            category = 'sexy';
+          }
+        }
+      } else if (scores.sexy >= sexyThreshold) {
+        shouldBlock = true;
+        if (scores.sexy > maxScore) {
+          maxScore = scores.sexy;
+          reason = 'Sexy';
+          category = 'sexy';
+        }
+      }
+    }
+    
+    // Дополнительная проверка: комбинированный NSFW-скор
+    // Если по отдельности не дотягивают, но вместе — явно NSFW
+    if (!shouldBlock && nsfwScore > 0.7 && safeScore < 0.3) {
+      // Определяем доминирующую категорию
+      if (scores.porn >= scores.hentai && scores.porn >= scores.sexy && settings.categories.porn) {
+        shouldBlock = true;
+        maxScore = scores.porn;
+        reason = 'Porn';
+        category = 'porn';
+      } else if (scores.hentai >= scores.porn && scores.hentai >= scores.sexy && settings.categories.hentai) {
+        shouldBlock = true;
+        maxScore = scores.hentai;
+        reason = 'Hentai';
+        category = 'hentai';
+      } else if (settings.categories.sexy) {
+        shouldBlock = true;
+        maxScore = scores.sexy;
+        reason = 'Sexy';
+        category = 'sexy';
+      }
+    }
+    
+    return { shouldBlock, reason, category, score: maxScore };
   }
 
-  // Блокировка изображения
-  function blockImage(img, reason) {
-    // Сохраняем оригинальные стили
-    img.dataset.nsfwOriginalSrc = img.src;
-    img.dataset.nsfwBlocked = 'true';
-    img.dataset.nsfwReason = reason;
+  // ═══════════════════════════════════════════════════════════════
+  // БЛОКИРОВКА ИЗОБРАЖЕНИЙ
+  // ═══════════════════════════════════════════════════════════════
+
+  // Кэш для placeholder разных размеров
+  const placeholderCache = new Map();
+
+  function getPlaceholderDataUrl(width, height) {
+    // Округляем до сетки 50px для лучшего кэширования
+    const cw = Math.round(width / 50) * 50 || 100;
+    const ch = Math.round(height / 50) * 50 || 100;
+    const key = `${cw}x${ch}`;
     
-    // Создаём белый placeholder
+    if (placeholderCache.has(key)) {
+      return placeholderCache.get(key);
+    }
+    
     const canvas = document.createElement('canvas');
-    canvas.width = img.naturalWidth || img.width || 200;
-    canvas.height = img.naturalHeight || img.height || 200;
-    
+    canvas.width = cw;
+    canvas.height = ch;
     const ctx = canvas.getContext('2d');
     
     // Белый фон
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#f5f5f5';
+    ctx.fillRect(0, 0, cw, ch);
     
-    // Добавляем иконку щита
-    ctx.fillStyle = '#e0e0e0';
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
-    const iconSize = Math.min(canvas.width, canvas.height) * 0.3;
+    // Иконка щита
+    ctx.fillStyle = '#ddd';
+    const cx = cw / 2;
+    const cy = ch / 2;
+    const sz = Math.min(cw, ch) * 0.25;
     
-    // Рисуем простой щит
     ctx.beginPath();
-    ctx.moveTo(centerX, centerY - iconSize/2);
-    ctx.lineTo(centerX + iconSize/2, centerY - iconSize/4);
-    ctx.lineTo(centerX + iconSize/2, centerY + iconSize/4);
-    ctx.quadraticCurveTo(centerX, centerY + iconSize/2, centerX, centerY + iconSize/2);
-    ctx.quadraticCurveTo(centerX, centerY + iconSize/2, centerX - iconSize/2, centerY + iconSize/4);
-    ctx.lineTo(centerX - iconSize/2, centerY - iconSize/4);
+    ctx.moveTo(cx, cy - sz / 2);
+    ctx.lineTo(cx + sz / 2, cy - sz / 4);
+    ctx.lineTo(cx + sz / 2, cy + sz / 4);
+    ctx.quadraticCurveTo(cx, cy + sz / 2, cx, cy + sz / 2);
+    ctx.quadraticCurveTo(cx, cy + sz / 2, cx - sz / 2, cy + sz / 4);
+    ctx.lineTo(cx - sz / 2, cy - sz / 4);
     ctx.closePath();
     ctx.fill();
     
-    // Заменяем src
-    img.src = canvas.toDataURL('image/png');
+    // Текст категории
+    const fontSize = Math.max(10, Math.min(cw, ch) * 0.06);
+    ctx.font = `${fontSize}px sans-serif`;
+    ctx.fillStyle = '#bbb';
+    ctx.textAlign = 'center';
+    ctx.fillText('NSFW', cx, cy + sz / 2 + fontSize + 4);
     
-    // Добавляем стили
+    const dataUrl = canvas.toDataURL('image/png');
+    placeholderCache.set(key, dataUrl);
+    
+    return dataUrl;
+  }
+
+  function blockImage(img, reason, category) {
+    img.dataset.nsfwOriginalSrc = img.src;
+    img.dataset.nsfwBlocked = 'true';
+    img.dataset.nsfwReason = reason;
+    img.dataset.nsfwCategory = category;
+    
+    const w = img.naturalWidth || img.width || 200;
+    const h = img.naturalHeight || img.height || 200;
+    
+    img.src = getPlaceholderDataUrl(w, h);
     img.style.filter = 'none';
     img.style.opacity = '1';
     
-    console.log(`NSFW Filter: Blocked image (${reason})`);
+    console.log(`NSFW Filter: Blocked [${category}] (${reason})`);
   }
 
-  // Обновление статистики
+  // ═══════════════════════════════════════════════════════════════
+  // СТАТИСТИКА (с дебаунсингом)
+  // ═══════════════════════════════════════════════════════════════
+
   let statsBuffer = { blocked: 0, scanned: 0 };
   let statsTimeout = null;
 
@@ -297,7 +512,6 @@
     statsBuffer.blocked += blocked;
     statsBuffer.scanned += scanned;
 
-    // Отправляем статистику с задержкой для оптимизации
     if (!statsTimeout) {
       statsTimeout = setTimeout(() => {
         chrome.runtime.sendMessage({
@@ -308,29 +522,82 @@
         
         statsBuffer = { blocked: 0, scanned: 0 };
         statsTimeout = null;
-      }, 1000);
+      }, CONFIG.STATS_DEBOUNCE);
     }
   }
 
-  // Обработка отложенных изображений
-  function processPendingImages() {
-    for (const img of pendingImages) {
-      if (img.complete && img.naturalWidth > 0) {
-        checkImage(img);
+  // ═══════════════════════════════════════════════════════════════
+  // ПРЕДЗАГРУЗКА МОДЕЛИ
+  // ═══════════════════════════════════════════════════════════════
+
+  let preloadPromise = null;
+
+  async function preloadModel() {
+    if (isModelReady) return;
+    if (preloadPromise) return preloadPromise;
+    
+    preloadPromise = (async () => {
+      // Ждём sandbox
+      if (!isSandboxReady) {
+        await new Promise(resolve => {
+          const check = setInterval(() => {
+            if (isSandboxReady) { clearInterval(check); resolve(); }
+          }, 50);
+          // Максимум 10 секунд ожидания
+          setTimeout(() => { clearInterval(check); resolve(); }, 10000);
+        });
       }
-    }
-    pendingImages.clear();
+      
+      if (!isSandboxReady) {
+        console.warn('NSFW Filter: Sandbox timeout, retrying...');
+        preloadPromise = null;
+        return;
+      }
+      
+      try {
+        const response = await sendToSandbox('PRELOAD_MODEL');
+        if (response && response.success) {
+          isModelReady = true;
+          console.log('NSFW Filter: Model preloaded');
+          // Обрабатываем ожидающие изображения
+          for (const img of pendingImages) {
+            if (img.isConnected && img.complete && img.naturalWidth > 0) {
+              enqueueImage(img);
+            }
+          }
+          pendingImages.clear();
+          drainQueue();
+        }
+      } catch (error) {
+        console.debug('NSFW Filter: Model preload error', error.message);
+        preloadPromise = null;
+      }
+    })();
+    
+    return preloadPromise;
   }
 
-  // Обработка нового изображения
+  // ═══════════════════════════════════════════════════════════════
+  // ОБРАБОТКА DOM
+  // ═══════════════════════════════════════════════════════════════
+
+  async function fetchSettings() {
+    try {
+      const response = await chrome.runtime.sendMessage({ type: 'GET_SETTINGS' });
+      if (response) settings = response;
+    } catch (error) {
+      console.error('NSFW Filter: Failed to fetch settings', error);
+    }
+  }
+
   function handleImage(img) {
     if (!settings.enabled) return;
     if (processedImages.has(img)) return;
     if (img.dataset.nsfwBlocked === 'true') return;
     
-    if (img.width < MIN_IMAGE_SIZE && img.height < MIN_IMAGE_SIZE) {
-      return;
-    }
+    const w = img.naturalWidth || img.width;
+    const h = img.naturalHeight || img.height;
+    if (w < CONFIG.MIN_IMAGE_SIZE && h < CONFIG.MIN_IMAGE_SIZE) return;
 
     if (!isModelReady || !isSandboxReady) {
       pendingImages.add(img);
@@ -339,82 +606,120 @@
     }
 
     if (img.complete && img.naturalWidth > 0) {
-      checkImage(img);
+      enqueueImage(img);
     } else {
-      img.addEventListener('load', () => checkImage(img), { once: true });
+      img.addEventListener('load', () => {
+        if (!processedImages.has(img)) enqueueImage(img);
+      }, { once: true });
     }
   }
 
-  // Поиск всех изображений на странице
+  // Дебаунсированное сканирование страницы
   function scanPage() {
-    const images = document.querySelectorAll('img');
-    images.forEach(handleImage);
+    if (scanDebounceTimer) clearTimeout(scanDebounceTimer);
+    scanDebounceTimer = setTimeout(() => {
+      const images = document.querySelectorAll('img');
+      for (let i = 0; i < images.length; i++) {
+        handleImage(images[i]);
+      }
+    }, CONFIG.SCAN_DEBOUNCE);
   }
 
-  // Наблюдатель за изменениями DOM
+  // Сканирование без дебаунса (для первого запуска)
+  function scanPageImmediate() {
+    const images = document.querySelectorAll('img');
+    for (let i = 0; i < images.length; i++) {
+      handleImage(images[i]);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // MUTATION OBSERVER (оптимизированный)
+  // ═══════════════════════════════════════════════════════════════
+
+  let mutationBatch = [];
+  let mutationTimer = null;
+
+  function processMutationBatch() {
+    const batch = mutationBatch;
+    mutationBatch = [];
+    mutationTimer = null;
+    
+    for (const img of batch) {
+      if (img.isConnected) handleImage(img);
+    }
+  }
+
   const observer = new MutationObserver((mutations) => {
     if (!settings.enabled) return;
     
     for (const mutation of mutations) {
-      // Новые узлы
       for (const node of mutation.addedNodes) {
         if (node.nodeName === 'IMG') {
-          handleImage(node);
+          mutationBatch.push(node);
         } else if (node.querySelectorAll) {
-          const images = node.querySelectorAll('img');
-          images.forEach(handleImage);
+          const imgs = node.querySelectorAll('img');
+          for (let i = 0; i < imgs.length; i++) {
+            mutationBatch.push(imgs[i]);
+          }
         }
       }
       
-      // Изменение атрибутов (например, src)
       if (mutation.type === 'attributes' && mutation.target.nodeName === 'IMG') {
         const img = mutation.target;
-        // Пропускаем уже заблокированные изображения
-        if (img.dataset.nsfwBlocked === 'true') {
-          continue;
-        }
-        if (mutation.attributeName === 'src') {
+        if (img.dataset.nsfwBlocked !== 'true' && mutation.attributeName === 'src') {
           processedImages.delete(img);
-          handleImage(img);
+          mutationBatch.push(img);
         }
       }
     }
+    
+    // Батчим обработку мутаций
+    if (mutationBatch.length > 0 && !mutationTimer) {
+      mutationTimer = setTimeout(processMutationBatch, 16); // ~1 frame
+    }
   });
 
-  // Слушатель обновления настроек
+  // ═══════════════════════════════════════════════════════════════
+  // НАСТРОЙКИ
+  // ═══════════════════════════════════════════════════════════════
+
   chrome.runtime.onMessage.addListener((message) => {
     if (message.type === 'SETTINGS_UPDATED') {
       settings = message.settings;
       
-      // Если фильтр выключен, можно показать заблокированные изображения
       if (!settings.enabled) {
+        // Разблокируем все изображения
         document.querySelectorAll('img[data-nsfw-blocked="true"]').forEach(img => {
           if (img.dataset.nsfwOriginalSrc) {
             img.src = img.dataset.nsfwOriginalSrc;
             delete img.dataset.nsfwBlocked;
             delete img.dataset.nsfwOriginalSrc;
             delete img.dataset.nsfwReason;
+            delete img.dataset.nsfwCategory;
             processedImages.delete(img);
           }
         });
       } else {
-        // Перепроверяем страницу с новыми настройками
+        // Перепроверяем с новыми настройками
         processedImages = new WeakSet();
-        scanPage();
+        imageQueue = [];
+        placeholderCache.clear();
+        scanPageImmediate();
       }
     }
   });
 
-  // Инициализация
+  // ═══════════════════════════════════════════════════════════════
+  // ИНИЦИАЛИЗАЦИЯ
+  // ═══════════════════════════════════════════════════════════════
+
   async function init() {
     await fetchSettings();
-    
     if (!settings.enabled) return;
     
-    // Создаём sandbox iframe
     createSandboxIframe();
     
-    // Запускаем наблюдатель
     observer.observe(document.documentElement, {
       childList: true,
       subtree: true,
@@ -422,18 +727,28 @@
       attributeFilter: ['src']
     });
     
-    // Сканируем существующие изображения
+    // Приоритизируем видимые изображения при первом скане
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', scanPage);
+      document.addEventListener('DOMContentLoaded', scanPageImmediate);
     } else {
-      scanPage();
+      scanPageImmediate();
     }
     
-    // Повторное сканирование после полной загрузки
     window.addEventListener('load', scanPage);
     
-    // Предзагрузка модели
+    // Пересканируем при скролле (для ленивой загрузки)
+    let scrollTimer = null;
+    window.addEventListener('scroll', () => {
+      if (scrollTimer) return;
+      scrollTimer = setTimeout(() => {
+        scrollTimer = null;
+        scanPage();
+      }, 300);
+    }, { passive: true });
+    
     preloadModel();
+    
+    console.log('NSFW Filter v2.0: Initialized (5-class, concurrent processing)');
   }
 
   init();

@@ -5,7 +5,7 @@
 [![GitHub Issues](https://img.shields.io/github/issues/AristarhUcolov/NSFW-Filter)](https://github.com/AristarhUcolov/NSFW-Filter/issues)
 [![GitHub Release](https://img.shields.io/github/v/release/AristarhUcolov/NSFW-Filter?include_prereleases)](https://github.com/AristarhUcolov/NSFW-Filter/releases)
 [![Chrome Web Store](https://img.shields.io/badge/Chrome-Web%20Store-brightgreen)](https://github.com/AristarhUcolov/NSFW-Filter)
-[![Version](https://img.shields.io/badge/version-1.0.0--beta-orange)](https://github.com/AristarhUcolov/NSFW-Filter)
+[![Version](https://img.shields.io/badge/version-1.1.0-blue)](https://github.com/AristarhUcolov/NSFW-Filter)
 
 [🇷🇺 Русский](#russian) | [🇬🇧 English](#english)
 
@@ -13,8 +13,6 @@
 
 <a name="russian"></a>
 ## 🇷🇺 Русская версия
-
-> ⚠️ **БЕТА-ВЕРСИЯ**: Расширение находится на стадии бета-тестирования. Возможны лаги, ошибки и неожиданное поведение. Мы активно работаем над улучшением стабильности и производительности.
 
 ### Защита от нежелательного контента
 
@@ -31,6 +29,8 @@ Chrome расширение для блокировки NSFW контента (�
 - 📈 **Статистика** - отслеживание количества заблокированных и проверенных изображений
 - 🖥️ **Локальная обработка** - вся обработка происходит на вашем компьютере, никакие данные не отправляются на сервер
 - ⚡ **Быстрая работа** - использует предобученную модель машинного обучения
+- 🌐 **Работа с cross-origin изображениями** — автоматически обрабатывает изображения с других доменов
+- 🔄 **Параллельная обработка** — до 4 одновременных классификаций с приоритетом видимых изображений
 
 ## 📦 Установка
 
@@ -84,8 +84,7 @@ NSFW-Filter/
 │   ├── icon48.png         # Иконка 48x48
 │   └── icon128.png        # Иконка 128x128
 ├── lib/
-│   ├── tf.min.js          # TensorFlow.js библиотека
-│   └── nsfwjs.min.js      # NSFWJS библиотека
+│   └── nsfwjs.min.js      # NSFWJS + TensorFlow.js (bundled)
 └── models/
     ├── model.json         # Конфигурация модели
     └── group1-shard*of6   # Веса модели (6 файлов)
@@ -95,8 +94,8 @@ NSFW-Filter/
 
 - Модель не идеальна и может иногда ошибаться
 - Некоторые изображения могут быть неправильно классифицированы (ложные срабатывания)
-- Изображения меньше 64x64 пикселей игнорируются
-- Cross-origin изображения с ограниченным доступом могут не анализироваться
+- Изображения меньше 50x50 пикселей игнорируются
+- Некоторые cross-origin изображения с жёсткими ограничениями CORS могут не анализироваться
 
 ## 🔒 Приватность
 
@@ -109,7 +108,19 @@ NSFW-Filter/
 - [TensorFlow.js](https://www.tensorflow.org/js) - машинное обучение в браузере
 - [NSFWJS](https://github.com/infinitered/nsfwjs) - модель классификации контента
 - Chrome Extension Manifest V3
+## 📋 История изменений
 
+### v1.1.0
+- 🐛 Исправлена критическая ошибка двойной загрузки TensorFlow.js (ошибки «kernel already registered»)
+- 🐛 Исправлена обработка cross-origin изображений (Google Images и др.)
+- ⚡ Оптимизирована производительность: параллельная обработка, очередь с приоритетами, переиспользование canvas
+- 🎯 Улучшена 5-классовая система классификации с адаптивными порогами
+- 🔄 Автоматическое пересканирование при скролле (поддержка lazy loading)
+
+### v1.0.0
+- 🎉 Первый релиз
+- Sandbox-архитектура для Manifest V3
+- Поддержка русского и английского языков
 ## 📝 Лицензия
 
 MIT License
@@ -138,8 +149,6 @@ MIT License
 <a name="english"></a>
 ## 🇬🇧 English Version
 
-> ⚠️ **BETA VERSION**: This extension is in beta testing stage. You may experience lags, bugs, and unexpected behavior. We are actively working on improving stability and performance.
-
 ### Content Protection Extension
 
 A Chrome extension for blocking NSFW content (pornography, hentai, explicit images) in real-time using AI powered by TensorFlow.js and NSFWJS.
@@ -155,6 +164,8 @@ A Chrome extension for blocking NSFW content (pornography, hentai, explicit imag
 - 📈 **Statistics** - track the number of blocked and scanned images
 - 🖥️ **Local Processing** - all processing happens on your computer, no data is sent to any server
 - ⚡ **Fast Performance** - uses a pre-trained machine learning model
+- 🌐 **Cross-origin Image Support** — automatically handles images from other domains
+- 🔄 **Concurrent Processing** — up to 4 simultaneous classifications with visible-image priority
 
 ## 📦 Installation
 
@@ -211,8 +222,7 @@ NSFW-Filter/
 │   ├── icon48.png         # 48x48 icon
 │   └── icon128.png        # 128x128 icon
 ├── lib/
-│   ├── tf.min.js          # TensorFlow.js library
-│   └── nsfwjs.min.js      # NSFWJS library
+│   └── nsfwjs.min.js      # NSFWJS + TensorFlow.js (bundled)
 └── models/
     ├── model.json         # Model configuration
     └── group1-shard*of6   # Model weights (6 files)
@@ -222,8 +232,8 @@ NSFW-Filter/
 
 - The model is not perfect and may sometimes make mistakes
 - Some images may be misclassified (false positives)
-- Images smaller than 64x64 pixels are ignored
-- Cross-origin images with restricted access may not be analyzed
+- Images smaller than 50x50 pixels are ignored
+- Some cross-origin images with strict CORS restrictions may not be analyzed
 
 ## 🔒 Privacy
 
@@ -237,7 +247,21 @@ NSFW-Filter/
 - [NSFWJS](https://github.com/infinitered/nsfwjs) - content classification model
 - Chrome Extension Manifest V3
 
-## 📝 License
+## � Changelog
+
+### v1.1.0
+- 🐛 Fixed critical double TensorFlow.js loading issue («kernel already registered» errors)
+- 🐛 Fixed cross-origin image processing (Google Images etc.)
+- ⚡ Performance optimized: concurrent processing, priority queue, canvas reuse
+- 🎯 Improved 5-class classification system with adaptive thresholds
+- 🔄 Auto-rescan on scroll (lazy loading support)
+
+### v1.0.0
+- 🎉 Initial release
+- Sandbox architecture for Manifest V3
+- Russian and English language support
+
+## �📝 License
 
 MIT License
 
