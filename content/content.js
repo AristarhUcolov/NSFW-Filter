@@ -1,5 +1,5 @@
-// NSFW Filter Content Script — v2.0 Optimized
-// Высокопроизводительная обработка изображений с параллелизмом
+// NSFW Filter Content Script — v3.0
+// Централизованная модель через offscreen document (загружается один раз)
 // 5-классовая система NSFWJS: Drawing, Hentai, Neutral, Porn, Sexy
 
 (async function() {
@@ -21,7 +21,6 @@
     MAX_CONCURRENT: 4,           // Параллельных классификаций одновременно
     RESIZE_TARGET: 299,          // Размер для модели (299x299)
     JPEG_QUALITY: 0.7,           // Качество JPEG (ниже = быстрее передача)
-    REQUEST_TIMEOUT: 10000,      // Таймаут запроса (10с вместо 30с)
     STATS_DEBOUNCE: 2000,        // Частота отправки статистики (мс)
     SCAN_DEBOUNCE: 50,           // Дебаунс сканирования DOM (мс)
     VISIBILITY_CHECK: true,      // Приоритизация видимых изображений
@@ -32,13 +31,7 @@
   // СОСТОЯНИЕ
   // ═══════════════════════════════════════════════════════════════
 
-  let isModelReady = false;
-  let isSandboxReady = false;
   let processedImages = new WeakSet();
-  let pendingImages = new Set();
-  let sandboxIframe = null;
-  let pendingRequests = new Map();
-  let requestIdCounter = 0;
   let activeTasks = 0;
   let imageQueue = [];          // Очередь изображений с приоритетами
   let isProcessingQueue = false;
@@ -59,81 +52,16 @@
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // SANDBOX КОММУНИКАЦИЯ
+  // КЛАССИФИКАЦИЯ ЧЕРЕЗ BACKGROUND (модель в offscreen document)
   // ═══════════════════════════════════════════════════════════════
 
-  function createSandboxIframe() {
-    if (sandboxIframe) return;
-    
-    sandboxIframe = document.createElement('iframe');
-    sandboxIframe.src = chrome.runtime.getURL('sandbox/sandbox.html');
-    sandboxIframe.style.cssText = 'display:none!important;width:0;height:0;border:none;position:fixed;top:-9999px;left:-9999px;pointer-events:none;';
-    sandboxIframe.setAttribute('sandbox', 'allow-scripts');
-    
-    document.documentElement.appendChild(sandboxIframe);
-  }
-
-  // Обработка сообщений от sandbox
-  window.addEventListener('message', (event) => {
-    if (event.source !== sandboxIframe?.contentWindow) return;
-    
-    const data = event.data;
-    
-    switch (data.type) {
-      case 'SANDBOX_READY':
-        isSandboxReady = true;
-        console.log('NSFW Filter: Sandbox ready');
-        break;
-        
-      case 'PRELOAD_RESULT':
-        if (data.success) {
-          isModelReady = true;
-          console.log('NSFW Filter: Model loaded');
-          drainQueue();
-        }
-        resolvePending(data.id, data);
-        break;
-        
-      case 'CLASSIFY_RESULT':
-        resolvePending(data.id, data);
-        break;
-        
-      case 'BATCH_RESULT':
-        resolvePending(data.id, data);
-        break;
-    }
-  });
-
-  function resolvePending(id, data) {
-    const pending = pendingRequests.get(id);
-    if (pending) {
-      pending.resolve(data);
-      pendingRequests.delete(id);
-    }
-  }
-
-  function sendToSandbox(type, data = {}) {
-    return new Promise((resolve, reject) => {
-      if (!sandboxIframe?.contentWindow) {
-        reject(new Error('Sandbox not available'));
-        return;
-      }
-      
-      const id = ++requestIdCounter;
-      const timer = setTimeout(() => {
-        if (pendingRequests.has(id)) {
-          pendingRequests.delete(id);
-          reject(new Error('Request timeout'));
-        }
-      }, CONFIG.REQUEST_TIMEOUT);
-      
-      pendingRequests.set(id, {
-        resolve: (result) => { clearTimeout(timer); resolve(result); },
-        reject: (err) => { clearTimeout(timer); reject(err); }
-      });
-      
-      sandboxIframe.contentWindow.postMessage({ type, id, ...data }, '*');
+  async function classifyImage(imageDataUrl) {
+    const response = await chrome.runtime.sendMessage({
+      type: 'CLASSIFY_IMAGE',
+      imageDataUrl
     });
+    if (response && response.success) return response.predictions;
+    throw new Error(response?.error || 'Classification failed');
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -193,7 +121,6 @@
 
   async function drainQueue() {
     if (isProcessingQueue) return;
-    if (!isModelReady || !isSandboxReady) return;
     if (imageQueue.length === 0) return;
     
     isProcessingQueue = true;
@@ -257,10 +184,10 @@
         return;
       }
       
-      const response = await sendToSandbox('CLASSIFY_IMAGE', { imageDataUrl });
+      const predictions = await classifyImage(imageDataUrl);
       
-      if (response && response.success && response.predictions) {
-        const result = analyzeResults(response.predictions);
+      if (predictions) {
+        const result = analyzeResults(predictions);
         
         if (result.shouldBlock) {
           blockImage(img, result.reason, result.category);
@@ -527,57 +454,6 @@
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // ПРЕДЗАГРУЗКА МОДЕЛИ
-  // ═══════════════════════════════════════════════════════════════
-
-  let preloadPromise = null;
-
-  async function preloadModel() {
-    if (isModelReady) return;
-    if (preloadPromise) return preloadPromise;
-    
-    preloadPromise = (async () => {
-      // Ждём sandbox
-      if (!isSandboxReady) {
-        await new Promise(resolve => {
-          const check = setInterval(() => {
-            if (isSandboxReady) { clearInterval(check); resolve(); }
-          }, 50);
-          // Максимум 10 секунд ожидания
-          setTimeout(() => { clearInterval(check); resolve(); }, 10000);
-        });
-      }
-      
-      if (!isSandboxReady) {
-        console.warn('NSFW Filter: Sandbox timeout, retrying...');
-        preloadPromise = null;
-        return;
-      }
-      
-      try {
-        const response = await sendToSandbox('PRELOAD_MODEL');
-        if (response && response.success) {
-          isModelReady = true;
-          console.log('NSFW Filter: Model preloaded');
-          // Обрабатываем ожидающие изображения
-          for (const img of pendingImages) {
-            if (img.isConnected && img.complete && img.naturalWidth > 0) {
-              enqueueImage(img);
-            }
-          }
-          pendingImages.clear();
-          drainQueue();
-        }
-      } catch (error) {
-        console.debug('NSFW Filter: Model preload error', error.message);
-        preloadPromise = null;
-      }
-    })();
-    
-    return preloadPromise;
-  }
-
-  // ═══════════════════════════════════════════════════════════════
   // ОБРАБОТКА DOM
   // ═══════════════════════════════════════════════════════════════
 
@@ -598,12 +474,6 @@
     const w = img.naturalWidth || img.width;
     const h = img.naturalHeight || img.height;
     if (w < CONFIG.MIN_IMAGE_SIZE && h < CONFIG.MIN_IMAGE_SIZE) return;
-
-    if (!isModelReady || !isSandboxReady) {
-      pendingImages.add(img);
-      preloadModel();
-      return;
-    }
 
     if (img.complete && img.naturalWidth > 0) {
       enqueueImage(img);
@@ -718,8 +588,6 @@
     await fetchSettings();
     if (!settings.enabled) return;
     
-    createSandboxIframe();
-    
     observer.observe(document.documentElement, {
       childList: true,
       subtree: true,
@@ -746,9 +614,7 @@
       }, 300);
     }, { passive: true });
     
-    preloadModel();
-    
-    console.log('NSFW Filter v2.0: Initialized (5-class, concurrent processing)');
+    console.log('NSFW Filter v3.0: Initialized (centralized model)');
   }
 
   init();

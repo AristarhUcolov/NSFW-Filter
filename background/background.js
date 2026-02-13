@@ -1,28 +1,57 @@
 // Background Service Worker для NSFW Filter
+// Управляет offscreen document (модель загружается один раз)
+// Маршрутизирует запросы классификации от content scripts
 
-// Service worker не может создавать DOM/iframe
-// Классификация происходит напрямую в content script через sandbox iframe
+const OFFSCREEN_PATH = 'offscreen/offscreen.html';
 
-// Инициализация настроек при первом запуске
+// ═══════════════════════════════════════════════════════════════
+// OFFSCREEN DOCUMENT MANAGEMENT
+// ═══════════════════════════════════════════════════════════════
+
+let creatingOffscreen = null;
+
+async function ensureOffscreenDocument() {
+  // Проверяем, существует ли уже offscreen document
+  const contexts = await chrome.runtime.getContexts({
+    contextTypes: ['OFFSCREEN_DOCUMENT'],
+    documentUrls: [chrome.runtime.getURL(OFFSCREEN_PATH)]
+  });
+
+  if (contexts.length > 0) return;
+
+  // Предотвращаем параллельное создание
+  if (creatingOffscreen) {
+    await creatingOffscreen;
+    return;
+  }
+
+  creatingOffscreen = chrome.offscreen.createDocument({
+    url: OFFSCREEN_PATH,
+    reasons: ['IFRAME_SCRIPTING'],
+    justification: 'NSFW image classification using TensorFlow.js in sandboxed iframe'
+  });
+
+  await creatingOffscreen;
+  creatingOffscreen = null;
+
+  console.log('NSFW Filter: Offscreen document created (model loads once)');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ИНИЦИАЛИЗАЦИЯ
+// ═══════════════════════════════════════════════════════════════
+
 chrome.runtime.onInstalled.addListener(async () => {
   const defaults = {
     enabled: true,
     sensitivity: 50,
-    categories: {
-      porn: true,
-      sexy: true,
-      hentai: true
-    },
-    stats: {
-      blocked: 0,
-      scanned: 0
-    }
+    categories: { porn: true, sexy: true, hentai: true },
+    stats: { blocked: 0, scanned: 0 }
   };
 
-  // Сохраняем настройки только если они не существуют
   const existing = await chrome.storage.local.get(Object.keys(defaults));
   const toSet = {};
-  
+
   for (const key of Object.keys(defaults)) {
     if (existing[key] === undefined) {
       toSet[key] = defaults[key];
@@ -33,40 +62,70 @@ chrome.runtime.onInstalled.addListener(async () => {
     await chrome.storage.local.set(toSet);
   }
 
-  console.log('NSFW Filter: Extension installed and initialized');
+  console.log('NSFW Filter: Installed');
+
+  // Создаём offscreen document и начинаем загрузку модели
+  await ensureOffscreenDocument();
 });
 
-// Обработка сообщений от content scripts
+// Создаём offscreen при запуске браузера
+chrome.runtime.onStartup.addListener(async () => {
+  await ensureOffscreenDocument();
+});
+
+// ═══════════════════════════════════════════════════════════════
+// ОБРАБОТКА СООБЩЕНИЙ
+// ═══════════════════════════════════════════════════════════════
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === 'UPDATE_STATS') {
-    updateStats(message.blocked, message.scanned);
-    sendResponse({ success: true });
-  } else if (message.type === 'GET_SETTINGS') {
-    getSettings().then(sendResponse);
-    return true; // Асинхронный ответ
+  // Пропускаем сообщения для offscreen document
+  if (message.target === 'offscreen') return;
+
+  switch (message.type) {
+    case 'CLASSIFY_IMAGE':
+      handleClassify(message)
+        .then(sendResponse)
+        .catch(err => sendResponse({ success: false, error: err.message }));
+      return true; // async
+
+    case 'UPDATE_STATS':
+      updateStats(message.blocked, message.scanned);
+      sendResponse({ success: true });
+      return false;
+
+    case 'GET_SETTINGS':
+      getSettings().then(sendResponse);
+      return true; // async
   }
-  return false;
 });
 
-// Обновление статистики
+// Маршрутизация классификации в offscreen document
+async function handleClassify(message) {
+  await ensureOffscreenDocument();
+
+  const response = await chrome.runtime.sendMessage({
+    target: 'offscreen',
+    type: 'CLASSIFY_IMAGE',
+    imageDataUrl: message.imageDataUrl
+  });
+
+  return response;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// СТАТИСТИКА И НАСТРОЙКИ
+// ═══════════════════════════════════════════════════════════════
+
 async function updateStats(blocked, scanned) {
   const result = await chrome.storage.local.get('stats');
   const stats = result.stats ?? { blocked: 0, scanned: 0 };
-  
   stats.blocked += blocked;
   stats.scanned += scanned;
-  
   await chrome.storage.local.set({ stats });
 }
 
-// Получение настроек
 async function getSettings() {
-  const result = await chrome.storage.local.get([
-    'enabled',
-    'sensitivity',
-    'categories'
-  ]);
-
+  const result = await chrome.storage.local.get(['enabled', 'sensitivity', 'categories']);
   return {
     enabled: result.enabled !== false,
     sensitivity: result.sensitivity ?? 50,

@@ -5,7 +5,7 @@
 [![GitHub Issues](https://img.shields.io/github/issues/AristarhUcolov/NSFW-Filter)](https://github.com/AristarhUcolov/NSFW-Filter/issues)
 [![GitHub Release](https://img.shields.io/github/v/release/AristarhUcolov/NSFW-Filter?include_prereleases)](https://github.com/AristarhUcolov/NSFW-Filter/releases)
 [![Chrome Web Store](https://img.shields.io/badge/Chrome-Web%20Store-brightgreen)](https://github.com/AristarhUcolov/NSFW-Filter)
-[![Version](https://img.shields.io/badge/version-1.2.0-blue)](https://github.com/AristarhUcolov/NSFW-Filter)
+[![Version](https://img.shields.io/badge/version-1.3.0-blue)](https://github.com/AristarhUcolov/NSFW-Filter)
 
 [🇷🇺 Русский](#russian) | [🇬🇧 English](#english)
 
@@ -72,9 +72,15 @@ Chrome расширение для блокировки NSFW контента (�
 NSFW-Filter/
 ├── manifest.json          # Конфигурация расширения
 ├── background/
-│   └── background.js      # Service Worker (фоновый скрипт)
+│   └── background.js      # Service Worker (маршрутизация запросов)
+├── offscreen/
+│   ├── offscreen.html     # Offscreen document (персистентный)
+│   └── offscreen.js       # Мост между SW и sandbox
+├── sandbox/
+│   ├── sandbox.html       # Sandbox страница (unsafe-eval для TF.js)
+│   └── sandbox.js         # Загрузка модели и классификация
 ├── content/
-│   └── content.js         # Скрипт для анализа изображений на страницах
+│   └── content.js         # Скрипт анализа изображений на страницах
 ├── popup/
 │   ├── popup.html         # Интерфейс настроек
 │   ├── popup.css          # Стили интерфейса
@@ -109,6 +115,14 @@ NSFW-Filter/
 - [NSFWJS](https://github.com/infinitered/nsfwjs) - модель классификации контента
 - Chrome Extension Manifest V3
 ## 📋 История изменений
+
+### v1.3.0
+- ⚡ **Централизованная модель** — модель загружается один раз через offscreen document, общая для всех вкладок
+- ⚡ Больше нет лагов при загрузке страницы (модель не перезагружается на каждой вкладке)
+- 🧹 Удалён sandbox iframe из content scripts
+- 🧹 Удалён неиспользуемый `lib/tf.min.js`
+- 🏗️ Новая архитектура: content.js → background.js → offscreen.js → sandbox
+- 📉 Уменьшен размер content script (~200 строк удалено)
 
 ### v1.1.0
 - 🐛 Исправлена критическая ошибка двойной загрузки TensorFlow.js (ошибки «kernel already registered»)
@@ -207,16 +221,19 @@ A Chrome extension for blocking NSFW content (pornography, hentai, explicit imag
 NSFW-Filter/
 ├── manifest.json          # Extension configuration
 ├── background/
-│   └── background.js      # Service Worker (background script)
+│   └── background.js      # Service Worker (request routing)
+├── offscreen/
+│   ├── offscreen.html     # Offscreen document (persistent)
+│   └── offscreen.js       # Bridge between SW and sandbox
+├── sandbox/
+│   ├── sandbox.html       # Sandbox page (unsafe-eval for TF.js)
+│   └── sandbox.js         # Model loading and classification
 ├── content/
 │   └── content.js         # Script for analyzing images on pages
 ├── popup/
 │   ├── popup.html         # Settings interface
 │   ├── popup.css          # Interface styles
 │   └── popup.js           # Interface logic
-├── sandbox/
-│   ├── sandbox.html       # Sandbox page for TensorFlow.js
-│   └── sandbox.js         # Model loading and classification
 ├── icons/
 │   ├── icon16.png         # 16x16 icon
 │   ├── icon48.png         # 48x48 icon
@@ -248,6 +265,14 @@ NSFW-Filter/
 - Chrome Extension Manifest V3
 
 ## � Changelog
+
+### v1.3.0
+- ⚡ **Centralized model** — model loads once via offscreen document, shared across all tabs
+- ⚡ No more lag on page load (model no longer re-initializes per tab)
+- 🧹 Removed sandbox iframe from content scripts
+- 🧹 Deleted unused `lib/tf.min.js`
+- 🏗️ New architecture: content.js → background.js → offscreen.js → sandbox
+- 📉 Reduced content script size (~200 lines removed)
 
 ### v1.2.0
 - 🎨 Compact popup UI — all content visible without scrolling
