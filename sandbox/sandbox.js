@@ -1,9 +1,48 @@
 // Sandbox для классификации изображений
 // Работает в изолированном контексте с разрешённым unsafe-eval
-// Оптимизировано для максимальной производительности
+// WebGL backend для GPU-ускоренной классификации
 
 let model = null;
 let modelLoadPromise = null;
+let backendName = 'unknown';
+
+// Настройка WebGL backend для максимальной производительности
+async function setupWebGL() {
+  // nsfwjs bundle включает TensorFlow.js, который экспортирует tf глобально
+  if (typeof tf !== 'undefined') {
+    try {
+      // Принудительно выбираем WebGL backend (GPU-ускорение)
+      await tf.setBackend('webgl');
+      await tf.ready();
+      
+      backendName = tf.getBackend();
+      
+      // Оптимизации WebGL
+      if (backendName === 'webgl') {
+        const gl = tf.backend().gpgpu?.gl;
+        if (gl) {
+          // Отключаем неиспользуемые GL features для скорости
+          gl.disable(gl.DEPTH_TEST);
+          gl.disable(gl.STENCIL_TEST);
+          gl.disable(gl.BLEND);
+          gl.disable(gl.DITHER);
+          gl.disable(gl.POLYGON_OFFSET_FILL);
+          gl.disable(gl.SAMPLE_COVERAGE);
+          gl.disable(gl.SCISSOR_TEST);
+        }
+        
+        // Флаги TF.js для производительности
+        tf.env().set('WEBGL_DELETE_TEXTURE_THRESHOLD', 0);
+        tf.env().set('WEBGL_FORCE_F16_TEXTURES', false);
+        tf.env().set('WEBGL_PACK', true);
+        
+        console.log('NSFW Sandbox: WebGL GPU acceleration active');
+      }
+    } catch (e) {
+      console.warn('NSFW Sandbox: WebGL setup failed, using auto-detect:', e.message);
+    }
+  }
+}
 
 // Загрузка модели
 async function loadModel() {
@@ -12,17 +51,16 @@ async function loadModel() {
   
   modelLoadPromise = (async () => {
     try {
-      console.log('NSFW Filter Sandbox: Loading model...');
+      // Сначала настраиваем WebGL
+      await setupWebGL();
       
-      // nsfwjs.min.js bundles TensorFlow.js internally
-      // It auto-detects the best backend (WebGL if available, CPU fallback)
-      // No need to manually call tf.setBackend — tf is not exposed as a global
+      console.log(`NSFW Sandbox: Loading model (backend: ${backendName})...`);
       
       model = await nsfwjs.load('../models/', { size: 299 });
-      console.log('NSFW Filter Sandbox: Model loaded successfully');
+      console.log(`NSFW Sandbox: Model loaded (backend: ${backendName})`);
       return model;
     } catch (error) {
-      console.error('NSFW Filter Sandbox: Failed to load model', error);
+      console.error('NSFW Sandbox: Failed to load model', error);
       modelLoadPromise = null;
       throw error;
     }
@@ -152,7 +190,7 @@ window.addEventListener('message', async (event) => {
 
 // Сообщаем о готовности и сразу загружаем модель
 window.addEventListener('load', () => {
-  console.log('NSFW Filter Sandbox: Ready');
+  console.log('NSFW Sandbox: Ready');
   window.parent.postMessage({ type: 'SANDBOX_READY' }, '*');
   loadModel();
 });
