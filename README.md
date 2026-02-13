@@ -143,7 +143,7 @@ NSFW-Filter/
 - Поддержка русского и английского языков
 ## 📝 Лицензия
 
-MIT License
+GNU General Public License v3.0 (GPL-3.0)
 
 ## � Поддержать проект
 
@@ -308,7 +308,7 @@ NSFW-Filter/
 
 ## �📝 License
 
-MIT License
+GNU General Public License v3.0 (GPL-3.0)
 
 ## 💖 Support the Project
 
