@@ -67,6 +67,7 @@ async function loadSettings() {
   enableFilter.checked = result.enabled !== false;
   sensitivity.value = result.sensitivity ?? 50;
   sensitivityValue.textContent = `${sensitivity.value}%`;
+  updateSliderTrack();
 
   const stats = result.stats ?? { blocked: 0, scanned: 0 };
   blockedCount.textContent = formatNumber(stats.blocked);
@@ -112,8 +113,15 @@ async function saveSettings() {
 // Обработчики событий
 enableFilter.addEventListener('change', saveSettings);
 
+// Обновление цветной полоски слайдера
+function updateSliderTrack() {
+  const val = sensitivity.value;
+  sensitivity.style.background = `linear-gradient(to right, #667eea 0%, #764ba2 ${val}%, #e0e0e0 ${val}%)`;
+}
+
 sensitivity.addEventListener('input', () => {
   sensitivityValue.textContent = `${sensitivity.value}%`;
+  updateSliderTrack();
 });
 
 sensitivity.addEventListener('change', saveSettings);

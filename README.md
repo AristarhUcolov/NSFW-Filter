@@ -5,7 +5,7 @@
 [![GitHub Issues](https://img.shields.io/github/issues/AristarhUcolov/NSFW-Filter)](https://github.com/AristarhUcolov/NSFW-Filter/issues)
 [![GitHub Release](https://img.shields.io/github/v/release/AristarhUcolov/NSFW-Filter?include_prereleases)](https://github.com/AristarhUcolov/NSFW-Filter/releases)
 [![Chrome Web Store](https://img.shields.io/badge/Chrome-Web%20Store-brightgreen)](https://github.com/AristarhUcolov/NSFW-Filter)
-[![Version](https://img.shields.io/badge/version-1.1.0-blue)](https://github.com/AristarhUcolov/NSFW-Filter)
+[![Version](https://img.shields.io/badge/version-1.2.0-blue)](https://github.com/AristarhUcolov/NSFW-Filter)
 
 [🇷🇺 Русский](#russian) | [🇬🇧 English](#english)
 
@@ -248,6 +248,14 @@ NSFW-Filter/
 - Chrome Extension Manifest V3
 
 ## � Changelog
+
+### v1.2.0
+- 🎨 Compact popup UI — all content visible without scrolling
+- 🎨 Horizontal header layout (logo + title + language button in one row)
+- 🎨 Donate buttons as compact round icons in footer row
+- 🎨 Gradient-filled sensitivity slider track
+- 🧹 Removed sensitivity hint text for cleaner layout
+- 📐 Reduced padding, margins and font sizes throughout popup
 
 ### v1.1.0
 - 🐛 Fixed critical double TensorFlow.js loading issue («kernel already registered» errors)

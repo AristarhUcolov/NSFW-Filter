@@ -9,13 +9,15 @@
 <body>
   <div class="container">
     <div class="header">
-      <div class="logo">🛡️</div>
-      <h1>NSFW Filter</h1>
-      <p class="subtitle" data-i18n="extSubtitle"></p>
-      <p class="beta-warning" data-i18n="betaWarning"></p>
-      <div class="language-switcher">
+      <div class="header-row">
+        <span class="logo">🛡️</span>
+        <div>
+          <h1>NSFW Filter</h1>
+          <p class="subtitle" data-i18n="extSubtitle"></p>
+        </div>
         <button id="languageToggle" class="language-btn" title="Switch language"></button>
       </div>
+      <p class="beta-warning" data-i18n="betaWarning"></p>
     </div>
 
     <div class="toggle-section">
@@ -40,7 +42,6 @@
           <span data-i18n="sensitivityStrict"></span>
         </div>
       </div>
-      <p class="sensitivity-hint" data-i18n="sensitivityHint"></p>
     </div>
 
     <div class="stats-section">
@@ -55,22 +56,18 @@
     </div>
 
     <div class="footer">
-      <button id="resetStats" class="btn-reset" data-i18n="resetStats"></button>
-      
-      <div class="support-section">
-        <p class="support-title">💖 <span data-i18n="supportProject"></span></p>
+      <div class="footer-row">
+        <button id="resetStats" class="btn-reset" data-i18n="resetStats"></button>
         <div class="support-links">
-          <a href="https://buymeacoffee.com/aristarh.ucolov" target="_blank" class="support-link coffee" data-i18n="buyMeCoffee">
-          </a>
-          <button id="showBankDetails" class="support-link bank" data-i18n="bankTransfer">
-          </button>
+          <a href="https://buymeacoffee.com/aristarh.ucolov" target="_blank" class="support-link coffee" title="Buy Me a Coffee">☕</a>
+          <button id="showBankDetails" class="support-link bank" title="Bank Transfer">🏦</button>
         </div>
-        <div id="bankDetails" class="bank-details hidden">
-          <div class="bank-info">
-            <p><strong data-i18n="bank"></strong>: Moldindconbank</p>
-            <p><strong data-i18n="card"></strong>: <code>4028 1202 1106 0963</code></p>
-            <p><strong data-i18n="recipient"></strong>: Aristarh Ucolov</p>
-          </div>
+      </div>
+      <div id="bankDetails" class="bank-details hidden">
+        <div class="bank-info">
+          <p><strong data-i18n="bank"></strong>: Moldindconbank</p>
+          <p><strong data-i18n="card"></strong>: <code>4028 1202 1106 0963</code></p>
+          <p><strong data-i18n="recipient"></strong>: Aristarh Ucolov</p>
         </div>
       </div>
     </div>
