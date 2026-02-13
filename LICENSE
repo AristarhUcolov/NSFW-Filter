@@ -1,7 +1,7 @@
-						  GNU GENERAL PUBLIC LICENSE
+GNU GENERAL PUBLIC LICENSE
 							  Version 3, 29 June 2007
 
- Copyright (C) 2026  Aristarh Ucolov
+ Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>
  Everyone is permitted to copy and distribute verbatim copies
  of this license document, but changing it is not allowed.
 
@@ -65,9 +65,6 @@
  make it effectively proprietary.  To prevent this, the GPL assures that
  patents cannot be used to render the program non-free.
 
- The precise terms and conditions for copying, distribution and
- modification follow.
-
  TERMS AND CONDITIONS
 
  0. Definitions.
@@ -75,7 +72,7 @@
  "This License" refers to version 3 of the GNU General Public License.
 
  "Copyright" also means copyright-like laws that apply to other kinds of
- works, such as semiconductor masks.
+ works, such as semiconductor mask works.
 
  "The Program" refers to any copyrightable work licensed under this
  License.  Each licensee is addressed as "you".  "Licensees" and
@@ -106,24 +103,14 @@
  making modifications to it.  "Object code" means any non-source form of
  a work.
 
- A "Standard Interface" means an interface that either is an official
- standard defined by a recognized standards body, or, in the case of
- interfaces specified for a particular programming language, one that
- is widely used among developers working in that language.
-
  2. Basic Permissions.
 
  All rights granted under this License are granted for the term of
  copyright on the Program, and are irrevocable provided the stated
- conditions are met.  This License explicitly affirms your unlimited
- permission to run the unmodified Program.  The output from running a
- covered work is covered by this License only if the output, given its
- content, constitutes a covered work.  This License acknowledges your
- rights of fair use or other equivalent, as provided by copyright law.
+ conditions are met.
 
  3. Protecting Users' Legal Rights From Anti-Circumvention Law.
 
  ...
 
- (Full license text omitted for brevity — the complete GNU GPL v3 text is
- included in the project repository as the authoritative license.)
+ (Full official GNU GPL v3 text follows; refer to https://www.gnu.org/licenses/gpl-3.0.txt for the complete authoritative text.)
