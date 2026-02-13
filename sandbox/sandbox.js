@@ -18,7 +18,19 @@ async function setupWebGL() {
       backendName = tf.getBackend();
       
       if (backendName === 'webgl') {
-        // Безопасные TF.js флаги производительности
+        // Отключаем неиспользуемые GL features (GPGPU не рисует 3D)
+        const gl = tf.backend().gpgpu?.gl;
+        if (gl) {
+          gl.disable(gl.DEPTH_TEST);
+          gl.disable(gl.STENCIL_TEST);
+          gl.disable(gl.BLEND);
+          gl.disable(gl.DITHER);
+          gl.disable(gl.POLYGON_OFFSET_FILL);
+          gl.disable(gl.SAMPLE_COVERAGE);
+          gl.disable(gl.SCISSOR_TEST);
+        }
+        
+        // TF.js флаги производительности
         tf.env().set('WEBGL_DELETE_TEXTURE_THRESHOLD', 0); // Немедленное освобождение текстур
         tf.env().set('WEBGL_PACK', true);                  // Упаковка тензоров — меньше GL-вызовов
         
