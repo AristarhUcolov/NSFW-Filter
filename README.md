@@ -4,8 +4,8 @@
 [![GitHub Stars](https://img.shields.io/github/stars/AristarhUcolov/NSFW-Filter?style=social)](https://github.com/AristarhUcolov/NSFW-Filter/stargazers)
 [![GitHub Issues](https://img.shields.io/github/issues/AristarhUcolov/NSFW-Filter)](https://github.com/AristarhUcolov/NSFW-Filter/issues)
 [![GitHub Release](https://img.shields.io/github/v/release/AristarhUcolov/NSFW-Filter?include_prereleases)](https://github.com/AristarhUcolov/NSFW-Filter/releases)
-[![Chrome Web Store](https://img.shields.io/badge/Chrome-Web%20Store-brightgreen)](https://github.com/AristarhUcolov/NSFW-Filter)
-[![Version](https://img.shields.io/badge/version-1.3.0-blue)](https://github.com/AristarhUcolov/NSFW-Filter)
+[![Chrome Web Store](https://img.shields.io/badge/Chrome-Web%20Store-brightgreen)](https://chromewebstore.google.com/detail/nsfw-filter/nojnjhlhdhfaghkgdgdcobjnoeghkopg)
+[![Version](https://img.shields.io/badge/version-1.4.0-blue)](https://github.com/AristarhUcolov/NSFW-Filter)
 
 [🇷🇺 Русский](#russian) | [🇬🇧 English](#english)
 
@@ -115,6 +115,12 @@ NSFW-Filter/
 - [NSFWJS](https://github.com/infinitered/nsfwjs) - модель классификации контента
 - Chrome Extension Manifest V3
 ## 📋 История изменений
+
+### v1.4.0
+- 🚀 **WebGL GPU-ускорение** — принудительный WebGL backend с оптимизациями GPU
+- ⚡ Отключение неиспользуемых GL features (DEPTH_TEST, BLEND и др.)
+- ⚡ Оптимизация текстур TF.js (WEBGL_PACK, DELETE_TEXTURE_THRESHOLD)
+- 📎 Добавлена ссылка на Chrome Web Store
 
 ### v1.3.0
 - ⚡ **Централизованная модель** — модель загружается один раз через offscreen document, общая для всех вкладок
@@ -265,6 +271,12 @@ NSFW-Filter/
 - Chrome Extension Manifest V3
 
 ## � Changelog
+
+### v1.4.0
+- 🚀 **WebGL GPU acceleration** — forced WebGL backend with GPU optimizations
+- ⚡ Disabled unused GL features (DEPTH_TEST, BLEND, etc.)
+- ⚡ TF.js texture optimizations (WEBGL_PACK, DELETE_TEXTURE_THRESHOLD)
+- 📎 Added Chrome Web Store link
 
 ### v1.3.0
 - ⚡ **Centralized model** — model loads once via offscreen document, shared across all tabs
