@@ -1,6 +1,6 @@
 # 🛡️ NSFW Filter
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: GPLv3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.en.html)
 [![GitHub Stars](https://img.shields.io/github/stars/AristarhUcolov/NSFW-Filter?style=social)](https://github.com/AristarhUcolov/NSFW-Filter/stargazers)
 [![GitHub Issues](https://img.shields.io/github/issues/AristarhUcolov/NSFW-Filter)](https://github.com/AristarhUcolov/NSFW-Filter/issues)
 [![GitHub Release](https://img.shields.io/github/v/release/AristarhUcolov/NSFW-Filter?include_prereleases)](https://github.com/AristarhUcolov/NSFW-Filter/releases)
