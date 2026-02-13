@@ -17,10 +17,11 @@ async function setupWebGL() {
       
       backendName = tf.getBackend();
       
+      // Оптимизации WebGL
       if (backendName === 'webgl') {
-        // Отключаем неиспользуемые GL features (GPGPU не рисует 3D)
         const gl = tf.backend().gpgpu?.gl;
         if (gl) {
+          // Отключаем неиспользуемые GL features для скорости
           gl.disable(gl.DEPTH_TEST);
           gl.disable(gl.STENCIL_TEST);
           gl.disable(gl.BLEND);
@@ -30,9 +31,10 @@ async function setupWebGL() {
           gl.disable(gl.SCISSOR_TEST);
         }
         
-        // TF.js флаги производительности
-        tf.env().set('WEBGL_DELETE_TEXTURE_THRESHOLD', 0); // Немедленное освобождение текстур
-        tf.env().set('WEBGL_PACK', true);                  // Упаковка тензоров — меньше GL-вызовов
+        // Флаги TF.js для производительности
+        tf.env().set('WEBGL_DELETE_TEXTURE_THRESHOLD', 0);
+        tf.env().set('WEBGL_FORCE_F16_TEXTURES', false);
+        tf.env().set('WEBGL_PACK', true);
         
         console.log('NSFW Sandbox: WebGL GPU acceleration active');
       }
